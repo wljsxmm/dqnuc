@@ -656,14 +656,17 @@ def interpolate_profile(profile, upsample_factor):
     return interpolated
 
 
-def scale_and_interpolate_profiles(num_gen,
-                                   profiles_df=None,
+'这个函数 似乎已经在make env中实现了'
+
+
+def scale_and_interpolate_profiles(num_gen,profiles_df=None,
                                    target_dispatch_freq=30,
                                    original_num_gen=10,
                                    original_dispatch_freq=30):
     """
     缩放和插值配置文件
-    Linearly scale demand and wind profiles in profiles_df and interpolate 
+    Linearly scale demand and wind profiles in profiles_df and interpolate
+    在profiles_df 中线性缩放需求和风廓线并进行插值
     """
     if profiles_df is None:
         script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -698,11 +701,11 @@ def make_env(mode='train', profiles_df=None, **params):
 
     elif mode == 'test':
 
-        profiles_df = pd.read_csv(os.path.join(script_dir+'/data', profiles_df))
+        profiles_df = pd.read_csv(os.path.join(script_dir + '/data', profiles_df))
         profiles_df.demand = profiles_df.demand * len(
             gen_info) / 10  # Scale up or down depending on number of generators.
         profiles_df.wind = profiles_df.wind * len(gen_info) / 10
-    else :
+    else:
         raise ValueError("Must supply demand and wind profiles for testing")
     # Create environment object
     env = Env(gen_info=gen_info, profiles_df=profiles_df, mode=mode, **params)
@@ -727,7 +730,7 @@ def make_env_from_json(env_name='5gen', mode='train', profiles_df=None):
             path = os.path.join(script_dir, DEFAULT_PROFILES_FN)
             # 得到默认的训练数据的文件名 10-gen-train的csv是以30min为调度周期的
             profiles_df = pd.read_csv(path)
-        # 这一步的处理是为了让训练数据 实用于不同数量规模的机组  如果是5gen 那么负载和风电就应该减半
+        # 这一步的处理是为了让训练数据 适用于不同数量规模的机组  如果是5gen 那么负载和风电就应该减半
         profiles_df.demand = profiles_df.demand * len(
             gen_info) / 10  # Scale up or down depending on number of generators.
         profiles_df.wind = profiles_df.wind * len(gen_info) / 10
@@ -740,9 +743,6 @@ def make_env_from_json(env_name='5gen', mode='train', profiles_df=None):
     env.reset()
 
     return env
-
-
-
 
 
 if __name__ == '__main__':

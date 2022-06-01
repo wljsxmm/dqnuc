@@ -1,5 +1,4 @@
 import numpy as np
-import gym
 # from utils import *  # 开始前的import为了能够让配置和一些预处理的函数  在主程序开始前就生效
 from agent import *
 from config import *
@@ -20,15 +19,15 @@ def train(env, agent, num_episode, eps_init, eps_decay, eps_min, max_t):
 
         while not done and t < max_t:
 
-            action,processed_obs = agent.act(state, eps)
+            action, processed_obs = agent.act(state, eps)
             next_state, reward, done = env.step(action)
             next_state_processs = agent.process_observation(next_state)
-            agent.memory.store(processed_obs, action, reward, next_state_processs,done)
+            agent.memory.store(processed_obs, action, reward, next_state_processs, done)
             # state = next_state.copy()
             state = next_state
 
             if agent.memory.is_full():
-               agent.memory.reset_buffer()
+                agent.memory.reset_buffer()
 
             t += 1
             print("timesteps：{}".format(t))
@@ -50,15 +49,16 @@ def train(env, agent, num_episode, eps_init, eps_decay, eps_min, max_t):
 
     return rewards_log, average_log
 
-'''根据那个写test 和train 模式的切换'''
+
+'根据那个写test 和train 模式的切换'
 
 if __name__ == '__main__':
     env = make_env_from_json('5gen')
 
     agent = Agent(env, BATCH_SIZE, LEARNING_RATE, TAU, GAMMA, DEVICE)
-    rewards_log, average_log= train(env, agent, NUM_EPISODE, EPS_INIT, EPS_DECAY, EPS_MIN, MAX_T)
+    rewards_log, average_log = train(env, agent, NUM_EPISODE, EPS_INIT, EPS_DECAY, EPS_MIN, MAX_T)
     np.save('Data/{}_rewards2.npy'.format(ENV_NAME), rewards_log)
-    np.save('Data/{}_average2.npy'.format(ENV_NAME), average_log )
+    np.save('Data/{}_average.npy'.format(ENV_NAME), average_log)
 
     agent.Q_local.to('cpu')
     torch.save(agent.Q_local.state_dict(), 'Data/{}_weights2.pth'.format(ENV_NAME))

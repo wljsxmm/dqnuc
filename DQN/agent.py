@@ -1,12 +1,9 @@
 import random
-from collections import deque
-import torch
+
 import torch.optim as optim
-import numpy as np
-from config import *
+
 from networks import *
 from rl4uc.environment import *
-
 
 
 class ReplayMemory(object):
@@ -23,7 +20,8 @@ class ReplayMemory(object):
         self.dones = np.zeros(self.capacity)
         self.num_used = 0
         self.store_num = 0
-    def store(self, obs, action, reward, next_obs,dones):
+
+    def store(self, obs, action, reward, next_obs, dones):
         """Store a transition in the memory 前面把这些buf弄成全0矩阵 然后在main里面用while存入 """
         idx = self.num_used % self.capacity
 
@@ -34,7 +32,7 @@ class ReplayMemory(object):
         self.dones[idx] = dones
 
         self.num_used += 1
-        self.store_num +=1
+        self.store_num += 1
 
     def sample(self, batch_size):
         idx = np.random.choice(np.arange(self.capacity), size=batch_size, replace=False)
@@ -43,7 +41,7 @@ class ReplayMemory(object):
                 'obs': self.obs_buf[idx],
                 'rew': self.rew_buf[idx],
                 'next_obs': self.next_obs_buf[idx],
-                'dones':self.dones[idx]}
+                'dones': self.dones[idx]}
         # print('data{}'.format(data['act']))
         return data
 
@@ -52,8 +50,6 @@ class ReplayMemory(object):
 
     def reset_buffer(self):
         self.num_used = 0
-
-
 
 
 class Agent:
@@ -81,7 +77,7 @@ class Agent:
         self.MEMORY_SIZE = 300
         self.memory = ReplayMemory(self.MEMORY_SIZE, self.obs_size, self.num_gen)
 
-    def process_observation(self,obs):
+    def process_observation(self, obs):
         obs_new = np.concatenate((obs['status'], [obs['timestep']], obs['wind_forecast'], obs['demand_forecast']))
         return obs_new
 
@@ -127,7 +123,7 @@ class Agent:
         dones = np.broadcast_to(data['dones'], (self.num_gen, batch_size)).T
         dones = torch.tensor(dones).float()
         with torch.no_grad():
-            td_target = rews + self.gamma * next_qs*(1-dones)
+            td_target = rews + self.gamma * next_qs * (1 - dones)
 
         loss = self.criterion(qs, td_target)
         # 更新Q网络
@@ -162,6 +158,6 @@ class Agent:
         for target_param, local_param in zip(self.Q_target.parameters(), self.Q_local.parameters()):
             target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
 
-    def load_state_dict(self):
-        self.Q_local = Q_Network.load_state_dict(torch.load('Data/{}_weights2.pth'.format(ENV_NAME)))
+    def load_state_dict(self,parameter):
+        self.Q_local.load_state_dict(torch.load(parameter))
         pass
