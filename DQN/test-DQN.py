@@ -1,6 +1,6 @@
 from rl4uc.environment import *
 import matplotlib.pyplot as plt
-import config
+from config import *
 import torch
 from agent import Agent
 
@@ -10,7 +10,7 @@ def test():
     load = env.profiles_df.demand
     print(env.gen_info)
     print(env.episode_length)
-    agent = Agent()
+    agent = Agent(env, BATCH_SIZE, LEARNING_RATE, TAU, GAMMA, DEVICE)
     agent.load_state_dict()
 
     obs = env.reset()

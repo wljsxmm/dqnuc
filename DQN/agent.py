@@ -3,6 +3,7 @@ from collections import deque
 import torch
 import torch.optim as optim
 import numpy as np
+from config import *
 from networks import *
 from rl4uc.environment import *
 
@@ -161,6 +162,6 @@ class Agent:
         for target_param, local_param in zip(self.Q_target.parameters(), self.Q_local.parameters()):
             target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
 
-    def load_state_dict(self, param):
-        self.Q_local = Q_Network.load_state_dict('Data/{}_weights2.pth')
+    def load_state_dict(self):
+        self.Q_local = Q_Network.load_state_dict(torch.load('Data/{}_weights2.pth'.format(ENV_NAME)))
         pass
