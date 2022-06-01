@@ -1,5 +1,6 @@
 from rl4uc.environment import *
 import matplotlib.pyplot as plt
+import config
 import torch
 from agent import Agent
 
@@ -9,7 +10,7 @@ def test():
     load = env.profiles_df.demand
     print(env.gen_info)
     print(env.episode_length)
-    agent = Agent(env)
+    agent = Agent()
     agent.load_state_dict()
 
     obs = env.reset()
@@ -40,8 +41,7 @@ def test():
     return epoch_rewards, epoch_timesteps, dispatch, agent, load
 
 
-def visualize_results():
-    epoch_rewards, epoch_timesteps, dispatch, agent, load = test()
+def visualize_results(epoch_rewards, epoch_timesteps, dispatch, load):
     plt.plot(epoch_timesteps, epoch_rewards)
     plt.show()
     dispatch_process = np.array(dispatch)
@@ -51,3 +51,9 @@ def visualize_results():
     plt.bar(epoch_timesteps, dispatch_process[:, 2])
     plt.bar(epoch_timesteps, dispatch_process[:, 3])
     plt.bar(epoch_timesteps, dispatch_process[:, 4])
+    plt.plot(epoch_timesteps, load)
+
+    plt.legend()
+    plt.show()
+epoch_rewards, epoch_timesteps, dispatch, agent, load = test()
+visualize_results()
