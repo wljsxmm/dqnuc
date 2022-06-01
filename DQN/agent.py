@@ -160,3 +160,7 @@ class Agent:
     def soft_update(self, tau):
         for target_param, local_param in zip(self.Q_target.parameters(), self.Q_local.parameters()):
             target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
+
+    def load_state_dict(self, param):
+        self.Q_local = Q_Network.load_state_dict('Data/{}_weights2.pth')
+        pass
