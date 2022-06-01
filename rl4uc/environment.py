@@ -14,7 +14,7 @@ DEFAULT_VOLL = 10000
 DEFAULT_EPISODE_LENGTH_HRS = 24
 DEFAULT_DISPATCH_RESOLUTION = 0.5
 DEFAULT_DISPATCH_FREQ_MINS = 30
-DEFAULT_MIN_REWARD_SCALE = -5000
+DEFAULT_MIN_REWARD_SCALE = -4500
 DEFAULT_NUM_GEN = 5
 DEFAULT_EXCESS_CAPACITY_PENALTY_FACTOR = 0
 DEFAULT_STARTUP_MULTIPLIER = 1
@@ -56,7 +56,7 @@ class NStepARMA(object):
         Step forward the arma process. Can take errors, a (xt, zt) tuple to move this forward deterministically. 
         """
         if errors is not None:
-            xt, zt = errors  #  If seeding
+            xt, zt = errors  #   If seeding
         else:
             xt, zt = self.sample_error()
         self.xs = np.roll(self.xs, 1)
@@ -187,7 +187,7 @@ class Env(object):
         self.curtailed_mwh = 0
         self.curtailment_factor = kwargs.get('curtailment_factor', 0.)
 
-        self.action_size = self.num_gen + int(self.curtailment)
+        self.action_space = self.num_gen + int(self.curtailment)
 
     def _reset_availability(self):
         self.availability = np.ones(self.num_gen)
@@ -232,9 +232,11 @@ class Env(object):
         return (np.array(x, dtype=int))
 
     def _is_legal(self, action):
+
         """
         Check if an action satisfies minimum up/down time constraints
         """
+
         action = np.array(action)
         illegal_on = np.any(action[self.must_on] == 0)
         illegal_off = np.any(action[self.must_off] == 1)
@@ -284,7 +286,8 @@ class Env(object):
 
     def roll_forecasts(self):
         """
-        Roll forecasts forward by one timestep  将预测向前滚动一个时间步
+        Roll forecasts forward by one timestep
+        将预测向前滚动一个时间步
         这里不是实时滚动预测的 而是根据提前一天就预测好了 1day后 24个小时的误差
         这里超短期风速的数据是不是可以找老师要
         """
@@ -701,7 +704,6 @@ def make_env(mode='train', profiles_df=None, **params):
         profiles_df.wind = profiles_df.wind * len(gen_info) / 10
     else :
         raise ValueError("Must supply demand and wind profiles for testing")
-
     # Create environment object
     env = Env(gen_info=gen_info, profiles_df=profiles_df, mode=mode, **params)
     env.reset()
@@ -738,6 +740,10 @@ def make_env_from_json(env_name='5gen', mode='train', profiles_df=None):
     env.reset()
 
     return env
+
+
+
+
 
 if __name__ == '__main__':
     env = make_env()
