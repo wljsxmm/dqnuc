@@ -20,6 +20,13 @@ print('动作数 = {}'.format(env.action_space.n))
 import numpy as np
 # print(np.__version__ )
 # print(np.__path__)
+# diff = 4
+# dispatch_tolerance = 5
+# ens_amount = diff if diff > dispatch_tolerance else 0
+# print(ens_amount)
+# print(np.random.randint(0, 2, 5))
+action = [1,0,1]
+idx = np.where(np.array(action) == 1)[0]
+print(idx)
 
-
-print(np.random.randint(0, 2, 5))
+train_log_filepath = os.path.join(result_dir)

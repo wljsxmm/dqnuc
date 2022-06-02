@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import array
 
 import numpy as np
 import pandas as pd
@@ -8,13 +9,14 @@ from scipy.stats import weibull_min
 
 from rl4uc.dispatch import lambda_iteration
 
-DEFAULT_PROFILES_FN = 'data/train_data_10gen.csv'
+# DEFAULT_PROFILES_FN = 'data/train_data_10gen.csv'
+DEFAULT_PROFILES_FN = 'data/test_data_10gen.csv'
 
 DEFAULT_VOLL = 10000
 DEFAULT_EPISODE_LENGTH_HRS = 24
 DEFAULT_DISPATCH_RESOLUTION = 0.5
 DEFAULT_DISPATCH_FREQ_MINS = 30
-DEFAULT_MIN_REWARD_SCALE = -4500
+DEFAULT_MIN_REWARD_SCALE = -5000
 DEFAULT_NUM_GEN = 5
 DEFAULT_EXCESS_CAPACITY_PENALTY_FACTOR = 0
 DEFAULT_STARTUP_MULTIPLIER = 1
@@ -74,6 +76,10 @@ class NStepARMA(object):
 
 
 def update_cost_coefs(gen_info, usd_per_kgco2):
+    """
+    后期需要考虑碳排放可以加上这里的碳价格更新  现在参数是o 所以相当于没有更新
+    """
+    # print('------------------------update_cost_coefs------------------------')
     factor = (gen_info.kgco2_per_mmbtu / gen_info.usd_per_mmbtu) * usd_per_kgco2
     gen_info.a *= (1 + factor)
     gen_info.b *= (1 + factor)
@@ -101,11 +107,17 @@ class Env(object):
                                              DEFAULT_DISPATCH_FREQ_MINS)  # Dispatch frequency in minutes
         self.dispatch_resolution = self.dispatch_freq_mins / 60.
         self.num_gen = self.gen_info.shape[0]
-        if self.mode == 'test':
-            self.episode_length = len(self.profiles_df)
+
+        if self.mode == 'train':
+            # self.episode_length = kwargs.get('episode_length_hrs', DEFAULT_EPISODE_LENGTH_HRS)
+            self.episode_length = int(kwargs.get('episode_length_hrs', DEFAULT_EPISODE_LENGTH_HRS) \
+                                      * (60 / self.dispatch_freq_mins))  # 代表timestep的步数？
         else:
-            self.episode_length = kwargs.get('episode_length_hrs', DEFAULT_EPISODE_LENGTH_HRS)
-            self.episode_length = int(self.episode_length * (60 / self.dispatch_freq_mins))  # 代表timestep的步数？
+            # self.episode_length = len(self.profiles_df)
+            _, day_profile = self.sample_day()
+            # self.episode_length_test = len(day_profile)
+            self.episode_length_test = int(kwargs.get('episode_length_hrs', DEFAULT_EPISODE_LENGTH_HRS) \
+                                      * (60 / self.dispatch_freq_mins))
 
         # Set up the ARMA processes.
         arma_params = kwargs.get('arma_params', DEFAULT_ARMA_PARAMS)
@@ -122,8 +134,9 @@ class Env(object):
                                    sigma=arma_params['sigma_wind'],
                                    name='wind')
 
-        # Update the quadratic cost curves to account for carbon price 
-        update_cost_coefs(self.gen_info, float(kwargs.get('usd_per_kgco2', 0.)))
+        # Update the quadratic cost curves to account for carbon price
+        # 更新二次成本曲线以考虑碳价格
+        # update_cost_coefs(self.gen_info, float(kwargs.get('usd_per_kgco2', 0.)))
 
         # Generator info 
         self.max_output = self.gen_info['max_output'].to_numpy()
@@ -247,7 +260,7 @@ class Env(object):
 
     def _get_net_demand(self, deterministic, errors, curtail=False):
         """
-        Sample demand and wind realisations to get net demand forecast. 
+        Sample demand and wind realisations to get net demand forecast  净负载——把风电作为等效负荷
         """
         if errors is not None:
             demand_error = self.arma_demand.step(errors['demand'])
@@ -291,6 +304,7 @@ class Env(object):
         这里不是实时滚动预测的 而是根据提前一天就预测好了 1day后 24个小时的误差
         这里超短期风速的数据是不是可以找老师要
         """
+        print('Run roll_forecasts')
         self.episode_timestep += 1
         self.forecast = self.episode_forecast[self.episode_timestep]
         self.wind_forecast = self.episode_wind_forecast[self.episode_timestep]
@@ -308,8 +322,8 @@ class Env(object):
     def _get_state(self):
         """
         Get the state dictionary.
-
         """
+
         state = {'status': self.status,
                  'demand_forecast': self.episode_forecast,
                  'demand_errors': self.arma_demand.xs,
@@ -342,7 +356,14 @@ class Env(object):
         if self._is_legal(commitment_action) is False:
             commitment_action = self._legalise_action(commitment_action)
 
-        # Advance demand 
+        # # Advance demand
+        # if self.mode == 'train':
+        #     self.roll_forecasts()
+        # else:
+        #     self.forecast = self.episode_forecast[self.episode_timestep]
+        #     self.wind_forecast = self.episode_wind_forecast[self.episode_timestep]
+        #     self.episode_timestep += 1
+
         self.roll_forecasts()
 
         # Sample demand realisation
@@ -368,7 +389,7 @@ class Env(object):
         self.fuel_cost = np.sum(self.fuel_costs)
         self.kgco2 = self._calculate_kgco2(self.fuel_costs, self.disp)
         self.ens_cost = self.calculate_lost_load_cost(self.net_demand, self.disp, self.availability)
-        self.ens = True if self.ens_cost > 0 else False  #  Note that this will not mark ENS if VOLL is 0.
+        self.ens = True if self.ens_cost > 0 else False  #  -不换行 Note that this will not mark ENS if VOLL is 0. 意味着只有mismatch大于0才算失载，等于0不算失载
 
         # Accumulate the total cost for the day
         self.day_cost += self.start_cost + self.fuel_cost + self.ens_cost
@@ -378,7 +399,7 @@ class Env(object):
 
         return state
 
-    def step(self, action, deterministic=False, errors=None):
+    def step(self, action, deterministic=True, errors=None):
         """
         Advance the environment forward 1 timestep, returning an observation, the reward
         and whether the s_{t+1} is terminal. 
@@ -461,10 +482,9 @@ class Env(object):
 
     def calculate_fuel_cost_and_dispatch(self, demand, commitment, availability=None):
         """
-        Calculate the economic dispatch to meet demand. 基本目标 满足demand  再来寻找小的成本动作
+        Calculate the economic dispatch to meet demand.  基本目标 满足demand  再来寻找小的成本动作
         
-        Returns:
-            - fuel_costs (array)
+        Returns:- fuel_costs (array)
         ！！！- dispatch (array): power output for each generator
         """
         # If using outages, then demand should be capped at availabile generation
@@ -536,18 +556,26 @@ class Env(object):
         if at the final timestep of the episode. 
         
         When testing, terminal states only occur at the end of the episode.
+
         在test 里面可以把24个time step满足的情况做出来  test是可以render一下的
         先保存为npy 再提取出来 画出各个时间段的出力符合情况
         本质上 这个其实还是一个数值分配游戏
         """
         if self.mode == "train":
+            print('run self.episode_timestep {}'.format(self.episode_timestep))
             return (self.episode_timestep == (self.episode_length - 1)) or self.ens
         else:
-            return self.episode_timestep == (self.episode_length - 1)
+            print('run self.episode_timestep {}'.format(self.episode_timestep))
+            return (self.episode_timestep == (self.episode_length_test - 1)) or self.ens
+
+            '原来环境的test 功率失配不停止'
+            # return self.episode_timestep == (self.episode_length_test - 1)
+            # return (self.episode_timestep == (self.episode_length_test - 1))
 
     def sample_day(self):
         """Sample a random day from self.profiles_df"""
         day = np.random.choice(self.profiles_df.date, 1)
+        print('The sampled day is:{}'.format(day))
         day_profile = self.profiles_df[self.profiles_df.date == day.item()]
         return day, day_profile
 
@@ -563,16 +591,33 @@ class Env(object):
         """
         if self.mode == 'train':
             # Choose random day
+
+            print("use train data")
+
             day, day_profile = self.sample_day()
             self.day = day
             self.episode_forecast = day_profile.demand.values
             self.episode_wind_forecast = day_profile.wind.values
 
         else:
-            # profiles_df = pd.read_csv('/Users/xmm/PycharmProjects/pythonProject/rl4uc-master/rl4uc/data/test_data_5gen.csv')
-            profiles_df = self.profiles_df
-            self.episode_forecast = profiles_df.demand.values
-            self.episode_wind_forecast = profiles_df.wind.values
+            # profiles_df = pd.read_csv('/Users/xmm/PycharmProjects/pythonProject/rl4uc-master/rl4uc/data
+            # /test_data_5gen.csv')
+
+            print("use test data")
+
+            # profiles_df = self.profiles_df
+            # self.episode_forecast = profiles_df.demand.values
+            # self.episode_wind_forecast = profiles_df.wind.values
+
+            day, day_profile = self.sample_day()
+            print('The test day is {}'.format(day))
+            self.day = day
+            self.episode_forecast = day_profile.demand.values
+            self.episode_wind_forecast = day_profile.wind.values
+
+            '处理48 timeperiod 的测试文件'
+            # self.episode_forecast = day_profile.demand.values[::2]
+            # self.episode_wind_forecast = day_profile.wind.values[::2]
 
         # Resetting episode variables
         self.episode_timestep = -1
@@ -586,8 +631,10 @@ class Env(object):
 
         # Initalise grid status and constraints
         if self.mode == "train":
-            min_max = np.array([self.t_min_down, -self.t_min_up]).transpose()
-            self.status = np.array([x[np.random.randint(2)] for x in min_max])
+            '原来的随机确定机组的初始状态'
+            # min_max = np.array([self.t_min_down, -self.t_min_up]).transpose()
+            # self.status = np.array([x[np.random.randint(2)] for x in min_max])
+            self.status = np.array([0, 0, 0, 0, 0])
         else:
             self.status = self.gen_info['status'].to_numpy()
 
@@ -595,7 +642,7 @@ class Env(object):
         self._determine_constraints()
 
         # Initialise cost and ENS
-        self.expected_cost = 0
+        self.expected_cost = 0    # 这里可以用优化器的经济解来训练
         self.ens = False
 
         # Assign state
@@ -624,11 +671,15 @@ def create_gen_info(num_gen, dispatch_freq_mins):
     # Repeat generators
     gen10 = pd.read_csv(os.path.join(script_dir,
                                      'data/kazarlis_units_10.csv'))
+    gen5 = pd.read_csv(os.path.join(script_dir,
+                                     'data/kazarlis_units_5.csv'))
     if num_gen == 5:
-        gen_info = gen10[::2]  # Special: for 5 gens, take every other generator
+        gen_info = gen5
+        # gen_info = gen10[::2]  # Special: for 5 gens, take every other generator
     else:
         upper_limit = int(np.floor(num_gen / 10) + 1)
         gen_info = pd.concat([gen10] * upper_limit)[:num_gen]
+
     gen_info = gen_info.sort_index()
     gen_info.reset_index()
 
@@ -659,7 +710,7 @@ def interpolate_profile(profile, upsample_factor):
 '这个函数 似乎已经在make env中实现了'
 
 
-def scale_and_interpolate_profiles(num_gen,profiles_df=None,
+def scale_and_interpolate_profiles(num_gen, profiles_df=None,
                                    target_dispatch_freq=30,
                                    original_num_gen=10,
                                    original_dispatch_freq=30):
@@ -684,7 +735,7 @@ def scale_and_interpolate_profiles(num_gen,profiles_df=None,
     return profiles_df
 
 
-def make_env(mode='train', profiles_df=None, **params):
+def make_env(mode, profiles_df, **params):
     """
     Create an environment object.
     """
@@ -708,8 +759,10 @@ def make_env(mode='train', profiles_df=None, **params):
     else:
         raise ValueError("Must supply demand and wind profiles for testing")
     # Create environment object
+
     env = Env(gen_info=gen_info, profiles_df=profiles_df, mode=mode, **params)
-    env.reset()
+
+    # env.reset()
 
     return env
 
@@ -740,16 +793,16 @@ def make_env_from_json(env_name='5gen', mode='train', profiles_df=None):
 
     # Create environment object
     env = Env(gen_info=gen_info, profiles_df=profiles_df, mode=mode, **params)
-    env.reset()
+    env.reset()  # 在测试代码里面已经写过了
 
+    # return env, env.reset()
     return env
 
-
-if __name__ == '__main__':
-    env = make_env()
-    action = np.array([1, 1, 0, 0, 0])
-    observation, reward, done = env.step(action)
-    print("Dispatch: {}".format(env.disp))
-    print("Finished? {}".format(done))
-    print("Reward: {:.2f}".format(reward))
-    print("observation: {}".format(observation))
+# if __name__ == '__main__':
+#     env = make_env()
+#     action = np.array([1, 1, 0, 0, 0])
+#     observation, reward, done = env.step(action)
+#     print("Dispatch: {}".format(env.disp))
+#     print("Finished? {}".format(done))
+#     print("Reward: {:.2f}".format(reward))
+#     print("observation: {}".format(observation))

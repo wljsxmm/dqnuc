@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from agent import Agent
+from agent import DDQN_Agent
 from config import *
 # from rl4uc.environment import *  # 不要这样导入 会导致 将environment的函数先执行一遍 不过问题不大
 from rl4uc.environment import make_env
@@ -19,11 +19,11 @@ def test():
     load = env.episode_forecast
     wind = env.episode_wind_forecast
 
-    parameter_path = 'Data/{}_weights_test1.pth'.format(ENV_NAME)
+    parameter_path = 'Data/DDQN/{}_weights_test1.pth'.format(ENV_NAME)
     # parameter_path = 'Data/{}_weights2.pth'.format(ENV_NAME)
     print(env.gen_info)
     print('Test episode length is {}'.format(env.episode_length_test))
-    agent = Agent(env.num_gen, obs, BATCH_SIZE, LEARNING_RATE, TAU, GAMMA, DEVICE)
+    agent = DDQN_Agent(env.num_gen, obs, BATCH_SIZE, LEARNING_RATE, TAU, GAMMA, DEVICE)
     agent.load_state_dict(parameter_path)
 
     actions = []

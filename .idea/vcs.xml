@@ -2,5 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/pglib-uc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/pglib-uc/Egret" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/pyomo" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/rl4uc/pglib-uc" vcs="Git" />
   </component>
 </project>
