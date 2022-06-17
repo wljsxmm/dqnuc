@@ -55,6 +55,7 @@ class QAgent(nn.Module):
 
         q_values = self.forward(processed_obs)
         q_values = q_values.reshape(self.num_gen, 2)
+
         action = q_values.argmax(axis=1).detach().numpy()
 
         return action, processed_obs

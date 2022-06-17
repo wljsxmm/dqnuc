@@ -9,13 +9,14 @@ ENV_NAME = '5gens'
 
 # Agent parameters
 BATCH_SIZE = 128
+MEMORY_SIZE = 256
 LEARNING_RATE = 0.0005
 TAU = 0.001
 GAMMA = 0.95
 N_Steps = 48
 
 # Training parameters
-NUM_EPISODE = 20000
+NUM_EPISODE = 8000
 EPS_INIT = 1
 EPS_DECAY = 0.999
 EPS_MIN = 0.05

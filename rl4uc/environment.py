@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import array
+import random
 
 import numpy as np
 import pandas as pd
@@ -9,10 +10,10 @@ from scipy.stats import weibull_min
 
 from rl4uc.dispatch import lambda_iteration
 
-# DEFAULT_PROFILES_FN = 'data/train_data_10gen.csv'
-DEFAULT_PROFILES_FN = 'data/test_data_10gen.csv'
+DEFAULT_PROFILES_FN = 'data/train_data_10gen.csv'
+# DEFAULT_PROFILES_FN = 'data/test_data_5gen.csv'
 
-DEFAULT_VOLL = 10000
+DEFAULT_VOLL = 50000
 DEFAULT_EPISODE_LENGTH_HRS = 24
 DEFAULT_DISPATCH_RESOLUTION = 0.5
 DEFAULT_DISPATCH_FREQ_MINS = 30
@@ -304,7 +305,7 @@ class Env(object):
         这里不是实时滚动预测的 而是根据提前一天就预测好了 1day后 24个小时的误差
         这里超短期风速的数据是不是可以找老师要
         """
-        print('Run roll_forecasts')
+        # print('Run roll_forecasts')
         self.episode_timestep += 1
         self.forecast = self.episode_forecast[self.episode_timestep]
         self.wind_forecast = self.episode_wind_forecast[self.episode_timestep]
@@ -562,7 +563,9 @@ class Env(object):
         本质上 这个其实还是一个数值分配游戏
         """
         if self.mode == "train":
-            print('run self.episode_timestep {}'.format(self.episode_timestep))
+            # print('run self.episode_timestep {}'.format(self.episode_timestep))
+            if self.ens:
+                print('This is done by power dismatch')
             return (self.episode_timestep == (self.episode_length - 1)) or self.ens
         else:
             print('run self.episode_timestep {}'.format(self.episode_timestep))
@@ -574,6 +577,7 @@ class Env(object):
 
     def sample_day(self):
         """Sample a random day from self.profiles_df"""
+        random.seed(1)
         day = np.random.choice(self.profiles_df.date, 1)
         print('The sampled day is:{}'.format(day))
         day_profile = self.profiles_df[self.profiles_df.date == day.item()]
@@ -592,7 +596,7 @@ class Env(object):
         if self.mode == 'train':
             # Choose random day
 
-            print("use train data")
+            # print("use train data")
 
             day, day_profile = self.sample_day()
             self.day = day
@@ -735,7 +739,7 @@ def scale_and_interpolate_profiles(num_gen, profiles_df=None,
     return profiles_df
 
 
-def make_env(mode, profiles_df, **params):
+def make_env(mode='train', profiles_df=None, **params):
     """
     Create an environment object.
     """

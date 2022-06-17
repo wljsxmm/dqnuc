@@ -1,12 +1,12 @@
-import numpy as np
-from rl4uc.environment import make_env_from_json
-from gym import envs
-env_specs = envs.registry.all()
-envs_ids = [env_spec.id for env_spec in env_specs]
-# print(envs_ids)
-import gym
-import rl4uc.environment
-import tianshou
+# import numpy as np
+# from rl4uc.environment import make_env_from_json
+# from gym import envs
+# env_specs = envs.registry.all()
+# envs_ids = [env_spec.id for env_spec in env_specs]
+# # print(envs_ids)
+# import gym
+# import rl4uc.environment
+# import tianshou
 # print(tianshou.__version__)
 '''
 env = gym.make('MountainCar-v0')
@@ -25,8 +25,22 @@ import numpy as np
 # ens_amount = diff if diff > dispatch_tolerance else 0
 # print(ens_amount)
 # print(np.random.randint(0, 2, 5))
-action = [1,0,1]
-idx = np.where(np.array(action) == 1)[0]
-print(idx)
+# action = [1,0,1]
+# idx = np.where(np.array(action) == 1)[0]
+# print(idx)
+#
+# import itertools
+#
+# num = 0
+# a = (0, 1)  # iterable  是元组
+# for i in itertools.permutations(a, 2):
+#     print(i)
+#     num += 1
+# print(num)
 
-train_log_filepath = os.path.join(result_dir)
+
+import platform
+print(platform.platform())
+import torch
+print(torch.backends.mps.is_built())
+print(torch.has_mps)

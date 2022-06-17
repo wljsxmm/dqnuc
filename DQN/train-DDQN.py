@@ -6,9 +6,12 @@ from agent import *
 from config import *
 from rl4uc.environment import *
 from tensorboardX import SummaryWriter
+
+
 def 函数():  # python 竟然还能用中文定义函数名和变量名
     print('1111111111')
     pass
+
 
 def train(agent, num_episode, eps_init, eps_decay, eps_min, max_t):
     writer = SummaryWriter('Logs/DDQN')
@@ -74,7 +77,8 @@ if __name__ == '__main__':
     time_start = time.time()
     rewards_log, average_log, eps = train(agent, NUM_EPISODE, EPS_INIT, EPS_DECAY, EPS_MIN, MAX_T)
     time_end = time.time()
-    print('The final eps is: {} and total {} episodes time consuming is:{}'.format(eps, NUM_EPISODE , (time_end - time_start)))
+    print('The final eps is: {} and total {} episodes time consuming is:{}'.format(eps, NUM_EPISODE,
+                                                                                   (time_end - time_start)))
     np.save('Data/DDQN/{}_reward_test1.npy'.format(ENV_NAME), rewards_log)
     np.save('Data/DDQN/{}_average_test1.npy'.format(ENV_NAME), average_log)
 

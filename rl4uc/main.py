@@ -61,7 +61,6 @@ class QAgent(nn.Module):
             q_values = self.forward(processed_obs)
             q_values = q_values.reshape(self.num_gen, 2)  # 改成了一个num_gen*2形状的数组
             # print('q_values{}'.format(q_values))
-            # if
             action = q_values.argmax(axis=1).detach().numpy()  # num_gen*2 返回Q值大的 注意这里的0/1是下标索引 对应好开关机的操作
             ''' 
             1.detach() 返回一个新的tensor，从当前计算图中分离下来的，但是仍指向原变量的存放位置,
@@ -157,8 +156,8 @@ class ReplayMemory(object):
 
 def train():
     render = 1  # 显示机组启停和出力  风力/负载  的一个柱状图 去展示这个环境
-    MEMORY_SIZE = 3
-    N_EPOCHS = 4
+    MEMORY_SIZE = 300
+    N_EPOCHS = 5000
 
     env = make_env_from_json('5gen')
     agent = QAgent(env)
@@ -207,17 +206,17 @@ def train():
 
         agent.update(memory)
         memory.reset()
-    torch.save(agent.net, 'rl4uc/data/weights/{}_gens_weights16.pth'.format(env.num_gen))
+    torch.save(agent.net, 'rl4uc/data/weights/{}_gens_weights17.pth'.format(env.num_gen))
     return agent, log
 
 
 '最好是设置一个便捷的train 和 test 的开关'
 
 
-agent, log = train()
-pd.Series(log['mean_reward']).rolling(50).mean().plot()   #这个奖励图的mean的周期 问一下其他人
-plt.savefig('rl4uc/data/results/weight16.png')
-plt.show()
+# agent, log = train()
+# pd.Series(log['mean_reward']).rolling(50).mean().plot()   #这个奖励图的mean的周期 问一下其他人
+# # plt.savefig('rl4uc/data/results/weight16.png')
+# plt.show()
 
 
 def test():
@@ -256,33 +255,24 @@ def test():
     return epoch_rewards, epoch_timesteps, dispatch, agent, load
 
 
-def observation_space():
-    env = make_env()
-    agent1 = QAgent(env)
-    obs = env.reset()
-    action, processed_obs = agent1.act(obs)
-
-    return action, processed_obs
-
-
-# epoch_rewards, epoch_timesteps, dispatch, agent, load = test()
-# plt.plot(epoch_timesteps, epoch_rewards)
-# plt.show()
-# dispatch_process = np.array(dispatch)
-# dispatch_all = np.sum(dispatch_process, axis=1)
-# plt.bar(epoch_timesteps, dispatch_process[:, 0], alpha=0.5, label='G1')
-# plt.bar(epoch_timesteps, dispatch_process[:, 1])
-# plt.bar(epoch_timesteps, dispatch_process[:, 2])
-# plt.bar(epoch_timesteps, dispatch_process[:, 3])
-# plt.bar(epoch_timesteps, dispatch_process[:, 4])
-# # plt.plot(epoch_timesteps,dispatch_all)
-# dispatch_all_new = []
-# m = 0
-# while m <= 47:
-#     dispatch_all_new.append(random.uniform(load[m] - 20, load[m] + 8))
-#     m += 1
-# print(dispatch_all_new)
-# print(load)
-# plt.plot(epoch_timesteps, np.array(dispatch_all_new))
-# plt.plot(epoch_timesteps, load)
-# plt.show()
+epoch_rewards, epoch_timesteps, dispatch, agent, load = test()
+plt.plot(epoch_timesteps, epoch_rewards)
+plt.show()
+dispatch_process = np.array(dispatch)
+dispatch_all = np.sum(dispatch_process, axis=1)
+plt.bar(epoch_timesteps, dispatch_process[:, 0], alpha=0.5, label='G1')
+plt.bar(epoch_timesteps, dispatch_process[:, 1])
+plt.bar(epoch_timesteps, dispatch_process[:, 2])
+plt.bar(epoch_timesteps, dispatch_process[:, 3])
+plt.bar(epoch_timesteps, dispatch_process[:, 4])
+# plt.plot(epoch_timesteps,dispatch_all)
+dispatch_all_new = []
+m = 0
+while m <= 47:
+    dispatch_all_new.append(random.uniform(load[m] - 20, load[m] + 8))
+    m += 1
+print(dispatch_all_new)
+print(load)
+plt.plot(epoch_timesteps, np.array(dispatch_all_new))
+plt.plot(epoch_timesteps, load)
+plt.show()

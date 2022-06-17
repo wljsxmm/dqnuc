@@ -1,7 +1,7 @@
 import random
-
+from collections import deque
 import torch.optim as optim
-
+from config import *
 from networks import *
 from rl4uc.environment import *
 from tensorboardX import SummaryWriter
@@ -9,50 +9,40 @@ from tensorboardX import SummaryWriter
 
 class NStepsReplayMemory(object):
 
-    def __init__(self, capacity, obs_size, act_dim, nsteps):
+    def __init__(self, capacity, obs_size, act_dim, nsteps, gamma ):
         self.capacity = capacity
         self.obs_size = obs_size
         self.act_dim = act_dim
-
-        self.act_buf = np.zeros((self.capacity, self.act_dim))
-        self.obs_buf = np.zeros((self.capacity, self.obs_size))
-        self.rew_buf = np.zeros(self.capacity)
-        self.next_obs_buf = np.zeros((self.capacity, self.obs_size))
-        self.dones = np.zeros(self.capacity)
-        self.num_used = 0
-        self.store_num = 0
-
         self.NSteps = nsteps
+        self.gamma = gamma
 
-    def store(self, obs, action, reward, next_obs, dones):
-        """Store a transition in the memory 前面把这些buf弄成全0矩阵 然后在main里面用while存入 """
-        idx = self.num_used % self.capacity
+        self.memory = deque(maxlen=self.capacity)
+        self.NStepBuffer = deque(maxlen=self.NSteps)
 
-        self.act_buf[idx] = action
-        self.obs_buf[idx] = obs
-        self.rew_buf[idx] = reward
-        self.next_obs_buf[idx] = next_obs
-        self.dones[idx] = dones
+    def GetNStepInfo(self):
+        reward, next_observation, done = self.NStepBuffer[-1][-3:]
+        for _, _, rew, next_obs, do in reversed(list(self.NStepBuffer)[: -1]):
+            reward = self.gamma * reward * (1 - do) + rew
+            next_observation, done = (next_obs, do) if do else (next_observation, done)
+        return reward, next_observation, done
 
-        self.num_used += 1
-        self.store_num += 1
+    def store(self, observation, action, reward, next_observation, done):
+        self.NStepBuffer.append([observation, action, reward, next_observation, done])
+        if len(self.NStepBuffer) < self.NSteps:
+            return
+        reward, next_observation, done = self.GetNStepInfo()
+        observation, action = self.n_step_buffer[0][: 2]
+        self.memory.append([observation, action, reward, next_observation, done])
 
     def sample(self, batch_size):
-        idx = np.random.choice(np.arange(self.capacity), size=batch_size, replace=False)
-        # print('idx{}'.format(idx))
-        data = {'act': self.act_buf[idx],
-                'obs': self.obs_buf[idx],
-                'rew': self.rew_buf[idx],
-                'next_obs': self.next_obs_buf[idx],
-                'dones': self.dones[idx]}
-        # print('data{}'.format(data['act']))
-        return data
 
-    def is_full(self):
-        return self.num_used >= self.capacity
+        batch = random.sample(self.memory, batch_size)
+        observation, action, reward, next_observation, done = zip(*batch)
+        return np.concatenate(observation, 0), action, reward, np.concatenate(next_observation, 0), done
 
-    def reset_buffer(self):
-        self.num_used = 0
+    def __len__(self):
+        return len(self.memory)
+
 
 
 class ReplayMemory(object):
@@ -105,7 +95,6 @@ class DDQN_Agent:
 
     def __init__(self, num_gen, obs, bs, lr, tau, gamma, device):
 
-        # self.state_size = state_size
         self.num_gen = num_gen
         self.action_size = 2 * self.num_gen
         self.obs_size = self.process_observation(obs).size
@@ -121,7 +110,7 @@ class DDQN_Agent:
         self.criterion = nn.MSELoss()
         self.optimizer = optim.Adam(self.Q_local.parameters(), self.lr)
         # self.memory = deque(maxlen=100000)
-        self.MEMORY_SIZE = 300
+        self.MEMORY_SIZE = MEMORY_SIZE
         self.memory = ReplayMemory(self.MEMORY_SIZE, self.obs_size, self.num_gen)
 
     def process_observation(self, obs):
@@ -179,9 +168,9 @@ class DDQN_Agent:
         with torch.no_grad():
             td_target = rews + self.gamma * next_qs * (1 - dones)
 
-        # loss = self.criterion(qs, td_target)
-        loss = nn.SmoothL1Loss()
-        loss = loss(qs, td_target)
+        loss = self.criterion(qs, td_target)
+        # loss = nn.SmoothL1Loss()
+        # loss = loss(qs, td_target)
         # 更新Q网络
         self.optimizer.zero_grad()
         loss.backward()

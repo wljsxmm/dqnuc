@@ -11,3 +11,4 @@ seaborn~=0.11.2
 networkx~=2.8
 python-dateutil~=2.8.2
 setuptools~=62.3.2
+tensorboardx~=2.5
